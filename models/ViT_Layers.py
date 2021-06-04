@@ -9,12 +9,12 @@ class PatchCNN(Layer):
     
     def build(self, input_shape):
         
-        self.conv1 = Conv2D( 16, (5, 5), strides = (1, 1), padding='same', activation = 'relu')
+        self.conv1 = Conv2D( 16, (5, 5), strides = (2, 2), padding='same', activation = 'relu')
         self.conv2 = Conv2D( 32, (5, 5), strides = (2, 2), padding='same', activation = 'relu')
-        self.conv3 = Conv2D( 64, (5, 5), strides = (1, 1), padding='same', activation = 'relu')
+        self.conv3 = Conv2D( 64, (5, 5), strides = (2, 2), padding='same', activation = 'relu')
         self.conv4 = Conv2D(128, (5, 5), strides = (2, 2), padding='same', activation = 'relu')
         
-        self.reshape    = Reshape((8 * 8, 128))
+        self.reshape    = Reshape((256 * 256, 128))
         self.transpose = Permute((2,1))
         
     def call(self, x):
