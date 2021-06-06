@@ -1,57 +1,28 @@
+#https://eremo2002.tistory.com/76
+
 import tensorflow as tf
-from tensorflow.keras.layers import Layer, Conv2D
+from tensorflow.keras import Input, Model
+from tensorflow.keras.layers import BatchNormalization, Conv2D, Activation, Dense, GlobalAveragePooling2D, MaxPooling2D, ZeroPadding2D, Add
 
 
-class ResBlock(Layer):
 
-    def __init__(self, out_channel = 1, pooling = 'max'):
-        super(ResBlock, self).__init__()
-        self.C = out_channel
-        self.pooling = pooling
-        
-    def build(self, input_shape):
-        
-        #self.LN_1 = tf.keras.layers.LayerNormalization(axis = [1, 2, 3], epsilon=1e-8)
-        self.conv_1 = Conv2D(self.C, (3, 3), strides = (1, 1), padding='same', activation = None)
-        #self.LN_2 = tf.keras.layers.LayerNormalization(axis = [1, 2, 3], epsilon=1e-8)
-        self.conv_2 = Conv2D(self.C, (3, 3), strides = (1, 1), padding='same', activation = None)
-        
-        #self.LN_3 = tf.keras.layers.LayerNormalization(axis = [1, 2, 3], epsilon=1e-8)
-        self.conv_3 = Conv2D(self.C, (3, 3), strides = (1, 1), padding='same', activation = None)
-        #self.LN_4 = tf.keras.layers.LayerNormalization(axis = [1, 2, 3], epsilon=1e-8)
-        self.conv_4 = Conv2D(self.C, (3, 3), strides = (1, 1), padding='same', activation = None)
-        
-        #self.LN_5 = tf.keras.layers.LayerNormalization(axis = [1, 2, 3], epsilon=1e-8)
-        self.conv_5 = Conv2D(self.C, (3, 3), strides = (1, 1), padding='same', activation = None)
-        #self.LN_6 = tf.keras.layers.LayerNormalization(axis = [1, 2, 3], epsilon=1e-8)
-        self.conv_6 = Conv2D(self.C, (3, 3), strides = (1, 1), padding='same', activation = None)
-        
-        self.gelu = tf.keras.activations.gelu
-        
-        if self.pooling == 'max':
-            self.pool  = tf.keras.layers.MaxPool2D(
-                pool_size=(3, 3), strides=(2, 2), padding='same')
-        elif self.pooling == 'avg':
-            self.pool = tf.keras.layers.AveragePooling2D(
-                pool_size=(3, 3), strides=(2, 2), padding='same')
-        else:
-            raise ValueError("Invalid pooling")
-    def call(self, x):
-        
-        _x = self.gelu(self.conv_1(x))
-        _x = self.gelu(self.conv_2(_x))
-        #_x = _x + x
-        
-        x = _x
-        _x = self.gelu(self.conv_3(x))
-        _x = self.gelu(self.conv_4(_x))
-        #_x = _x + x
-        
-        x = _x
-        _x = self.gelu(self.conv_5(x))
-        _x = self.gelu(self.conv_6(_x))
-        #_x = _x + x
-        
-        x = self.pool(_x)
-        
-        return x
+
+input_tensor = Input(shape=(224, 224, 1), dtype='float32', name='input')
+
+def conv1_layer(x):
+    x = ZeroPadding2D(padding=(3, 3))(x) # "same" padsize is 5.. 
+    x = Conv2D(64, (7, 7), stride=(2, 2))
+    x = BatchNormalization()(x)
+    x = Axtivation('relu')(x)
+    x = Zeropadding2D(padding = (1, 1)) # why?
+    
+    return x
+
+def conv2_layer(x):
+    x = MaxPooling2D((3, 3), 2)(x)
+    
+    shortcut = x
+    for i in range(3):
+        if not i:
+            x = Conv2D(64, (1, 1), stride = (1, 1))(x)
+            
