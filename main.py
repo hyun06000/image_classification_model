@@ -14,7 +14,7 @@ from models.ResBlock import resnet
 from modules.TFR_load import TFR_load
 
 
-def main(_):
+def main():
     # TODO
     # config.py
 
@@ -37,13 +37,19 @@ def main(_):
     ds_name = 'cifar10'
     builder = tfds.builder(ds_name)
 
-    tr_ds, te_ds = builder.as_dataset(split = ['train', 'test'], shuffle_files = True)
-
-    tr_ds = tr_ds.batch(BATCH_SIZE)
-    te_ds = te_ds.batch(BATCH_SIZE)
+    tr_ds, te_ds = builder.as_dataset(
+        split = ['train', 'test'],
+        batch_size = BATCH_SIZE,
+        shuffle_files = True)
 
     model = resnet
-
+    
+    if COSINE_DECAY:
+        LEARNING_RATE = tf.keras.optimizers.schedules.CosineDecay(
+            LEARNING_RATE,
+            decay_steps = NUM_TRAIN_DATA//BATCH_SIZE * 100,
+            alpha = 0.01)
+    
     optimizer = tf.keras.optimizers.Adam(learning_rate=LEARNING_RATE, epsilon=1e-08)
     loss = tf.keras.losses.CategoricalCrossentropy()
     accuracy = tf.keras.metrics.CategoricalAccuracy()
