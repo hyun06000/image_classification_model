@@ -1,6 +1,27 @@
 import os
 import tensorflow as tf
 
+def random_flip_and_crop(example):
+    print(example)
+    print(type(example))
+    
+    
+    image, label = example["image"], example["label"]
+    image = tf.image.random_flip_left_right(image)
+    image = tf.image.pad_to_bounding_box(
+        image,
+        offset_height = 2,
+        offset_width  = 2,
+        target_height = 32 + 4,
+        target_width  = 32 + 4
+    )
+    image = tf.image.random_crop(
+        value = image,
+        size  = (32, 32, 3),
+    )
+
+    return {"image" : image, "label" : label}
+
 class decode_fn:
         def __init__(self, is_training, data_shape):
             self.is_training = is_training

@@ -3,10 +3,10 @@ from tensorflow.keras.layers import BatchNormalization, Conv2D, Activation, Dens
 import datetime
 
 
-class ResNet(tf.keras.Model):
+class MyModel(tf.keras.Model):
 
     def __init__(self):
-        super(ResNet, self).__init__()
+        super(MyModel, self).__init__()
         
         # =====================================================
         # =                  ----------------------------------
@@ -24,6 +24,8 @@ class ResNet(tf.keras.Model):
         BETA_REGULARIZER    = tf.keras.regularizers.l2(0.0)
         GAMMA_REGULARIZER   = tf.keras.regularizers.l2(0.0)
         
+        self.relu = tf.keras.layers.ReLU() # common
+        
         # =====================================================
         # =        --------------------------------------------
         # = CONV_1 ============================================
@@ -39,15 +41,15 @@ class ResNet(tf.keras.Model):
             kernel_initializer = KERNEL_INITIALIZER,
             kernel_regularizer = KERNEL_REGULARIZER,
             bias_regularizer   = BIAS_REGULARIZER,
+            name               = 'conv_1_1'
         )
         
         self.bn_1_1 = tf.keras.layers.BatchNormalization(
             epsilon           = EPSILON,
             beta_regularizer  = BETA_REGULARIZER,
-            gamma_regularizer = GAMMA_REGULARIZER, 
+            gamma_regularizer = GAMMA_REGULARIZER,
+            name              = 'bn_1_1'
         )
-        
-        self.relu_1_1 = tf.keras.layers.ReLU()
         
         # =====================================================
         # =        --------------------------------------------
@@ -56,9 +58,7 @@ class ResNet(tf.keras.Model):
         # =====================================================
         self.conv_2_1, self.bn_2_1 = [], []
         self.conv_2_2, self.bn_2_2 = [], []
-        self.relu_2_1, self.relu_2_2 =[], []
-        self.shortcut_connect_2 = []
-        for _ in range(3):
+        for i in range(3):
             self.conv_2_1.append(
                 tf.keras.layers.Conv2D(
                     filters            = 16,
@@ -70,6 +70,7 @@ class ResNet(tf.keras.Model):
                     kernel_initializer = KERNEL_INITIALIZER,
                     kernel_regularizer = KERNEL_REGULARIZER,
                     bias_regularizer   = BIAS_REGULARIZER,
+                    name               = 'conv_2_1_%d'%i
                 )
             )
             
@@ -80,10 +81,6 @@ class ResNet(tf.keras.Model):
                     gamma_regularizer=GAMMA_REGULARIZER, 
                 )
             )
-            self.relu_2_1.append(
-                tf.keras.layers.ReLU()
-            )
-            
             
             self.conv_2_2.append(
                 tf.keras.layers.Conv2D(
@@ -96,6 +93,7 @@ class ResNet(tf.keras.Model):
                     kernel_initializer = KERNEL_INITIALIZER,
                     kernel_regularizer = KERNEL_REGULARIZER,
                     bias_regularizer   = BIAS_REGULARIZER,
+                    name               = 'conv_2_2_%d'%i
                 )
             )
             
@@ -107,14 +105,7 @@ class ResNet(tf.keras.Model):
                 )
             )
         
-            self.relu_2_2.append(
-                tf.keras.layers.ReLU()
-            )
-            
-            self.shortcut_connect_2.append(
-                tf.keras.layers.Add()
-            )
-            
+        
         # =====================================================
         # =        --------------------------------------------
         # = CONV_3 ============================================
@@ -130,13 +121,12 @@ class ResNet(tf.keras.Model):
             kernel_initializer = KERNEL_INITIALIZER,
             kernel_regularizer = KERNEL_REGULARIZER,
             bias_regularizer   = BIAS_REGULARIZER,
+            name               = 'conv_3_shortcut'
         )
-        self.relu_3_shortcut = tf.keras.layers.ReLU()
+        
         
         self.conv_3_1, self.bn_3_1 = [], []
         self.conv_3_2, self.bn_3_2 = [], []
-        self.relu_3_1, self.relu_3_2 =[], []
-        self.shortcut_connect_3 = []
         for i in range(3):
             self.conv_3_1.append(
                 tf.keras.layers.Conv2D(
@@ -149,11 +139,10 @@ class ResNet(tf.keras.Model):
                     kernel_initializer = KERNEL_INITIALIZER,
                     kernel_regularizer = KERNEL_REGULARIZER,
                     bias_regularizer   = BIAS_REGULARIZER,
+                    name               = 'conv_3_1_%d'%i
                 )
             )
-            self.relu_3_1.append(
-                tf.keras.layers.ReLU()
-            )
+            
             self.bn_3_1.append(
                 tf.keras.layers.BatchNormalization(
                     epsilon=EPSILON,
@@ -161,7 +150,6 @@ class ResNet(tf.keras.Model):
                     gamma_regularizer=GAMMA_REGULARIZER, 
                 )
             )
-            
             
             self.conv_3_2.append(
                 tf.keras.layers.Conv2D(
@@ -174,8 +162,10 @@ class ResNet(tf.keras.Model):
                     kernel_initializer = KERNEL_INITIALIZER,
                     kernel_regularizer = KERNEL_REGULARIZER,
                     bias_regularizer   = BIAS_REGULARIZER,
+                    name               = 'conv_3_2_%d'%i
                 )
             )
+            
             self.bn_3_2.append(
                 tf.keras.layers.BatchNormalization(
                     epsilon=EPSILON,
@@ -183,14 +173,7 @@ class ResNet(tf.keras.Model):
                     gamma_regularizer=GAMMA_REGULARIZER, 
                 )
             )
-            self.relu_3_2.append(
-                tf.keras.layers.ReLU()
-            )
-            
-            self.shortcut_connect_3.append(
-                tf.keras.layers.Add()
-            )
-            
+        
         # =====================================================
         # =        --------------------------------------------
         # = CONV_4 ============================================
@@ -206,14 +189,12 @@ class ResNet(tf.keras.Model):
             kernel_initializer = KERNEL_INITIALIZER,
             kernel_regularizer = KERNEL_REGULARIZER,
             bias_regularizer   = BIAS_REGULARIZER,
+            name               = 'conv_4_shortcut'
         )
-        self.relu_4_shortcut = tf.keras.layers.ReLU()
         
         
         self.conv_4_1, self.bn_4_1 = [], []
         self.conv_4_2, self.bn_4_2 = [], []
-        self.relu_4_1, self.relu_4_2 =[], []
-        self.shortcut_connect_4 = []
         for i in range(3):
             self.conv_4_1.append(
                 tf.keras.layers.Conv2D(
@@ -226,8 +207,10 @@ class ResNet(tf.keras.Model):
                     kernel_initializer = KERNEL_INITIALIZER,
                     kernel_regularizer = KERNEL_REGULARIZER,
                     bias_regularizer   = BIAS_REGULARIZER,
+                    name               = 'conv_4_1_%d'%i
                 )
             )
+            
             self.bn_4_1.append(
                 tf.keras.layers.BatchNormalization(
                     epsilon=EPSILON,
@@ -235,10 +218,6 @@ class ResNet(tf.keras.Model):
                     gamma_regularizer=GAMMA_REGULARIZER, 
                 )
             )
-            self.relu_4_1.append(
-                tf.keras.layers.ReLU()
-            )
-            
             
             self.conv_4_2.append(
                 tf.keras.layers.Conv2D(
@@ -251,8 +230,10 @@ class ResNet(tf.keras.Model):
                     kernel_initializer = KERNEL_INITIALIZER,
                     kernel_regularizer = KERNEL_REGULARIZER,
                     bias_regularizer   = BIAS_REGULARIZER,
+                    name               = 'conv_4_2_%d'%i
                 )
             )
+            
             self.bn_4_2.append(
                 tf.keras.layers.BatchNormalization(
                     epsilon=EPSILON,
@@ -260,14 +241,8 @@ class ResNet(tf.keras.Model):
                     gamma_regularizer=GAMMA_REGULARIZER, 
                 )
             )
-            self.relu_4_2.append(
-                tf.keras.layers.ReLU()
-            )
-            
-            self.shortcut_connect_4.append(
-                tf.keras.layers.Add()
-            )
-            
+        
+        
         # =====================================================
         # =       ---------------------------------------------
         # = DENSE =============================================
@@ -286,7 +261,7 @@ class ResNet(tf.keras.Model):
         
         
         
-        #self.flatten = tf.keras.layers.Flatten()
+        
         
         
         # =====================================================
@@ -301,16 +276,16 @@ class ResNet(tf.keras.Model):
         
         x = inputs
         
-        
+        '''
         # =====================================================
         # =        --------------------------------------------
         # = CONV_1 ============================================
         # =        --------------------------------------------
         # =====================================================
         
-        x = self.conv_1_1(inputs)
+        x = self.conv_1_1(x)
         x = self.bn_1_1(x, training)
-        x = self.relu_1_1(x)
+        x = self.relu(x)
         
         
         
@@ -324,13 +299,13 @@ class ResNet(tf.keras.Model):
         for i in range(3):
             x = self.conv_2_1[i](x)
             x = self.bn_2_1[i](x, training)
-            x = self.relu_2_1[i](x)
+            x = self.relu(x)
             
             x = self.conv_2_2[i](x)
             x = self.bn_2_2[i](x, training)
-            x = self.relu_2_2[i](x)
+            x = self.relu(x)
             
-            x = self.shortcut_connect_2[i]([x, shortcut])
+            x = x + shortcut
             
             shortcut = x
         
@@ -342,17 +317,16 @@ class ResNet(tf.keras.Model):
         # =====================================================
                 
         shortcut = self.conv_3_shortcut(shortcut)
-        shortcut = self.relu_3_shortcut(shortcut)
         for i in range(3):
             x = self.conv_3_1[i](x)
             x = self.bn_3_1[i](x, training)
-            x = self.relu_3_1[i](x)
+            x = self.relu(x)
             
             x = self.conv_3_2[i](x)
             x = self.bn_3_2[i](x, training)
-            x = self.relu_3_2[i](x)
+            x = self.relu(x)
             
-            x = self.shortcut_connect_3[i]([x, shortcut])
+            x = x + shortcut
             
             shortcut = x
         
@@ -364,17 +338,16 @@ class ResNet(tf.keras.Model):
         # =====================================================
         
         shortcut = self.conv_4_shortcut(shortcut)
-        shortcut = self.relu_4_shortcut(shortcut)
         for i in range(3):
             x = self.conv_4_1[i](x)
             x = self.bn_4_1[i](x, training)
-            x = self.relu_4_1[i](x)
+            x = self.relu(x)
             
             x = self.conv_4_2[i](x)
             x = self.bn_4_2[i](x, training)
-            x = self.relu_4_2[i](x)
+            x = self.relu(x)
             
-            x = self.shortcut_connect_4[i]([x, shortcut])
+            x = x + shortcut
             
             shortcut = x
         
@@ -384,13 +357,13 @@ class ResNet(tf.keras.Model):
         # =       ---------------------------------------------
         # =====================================================
         
-        
         x = self.avg_pooling(x)
+        '''
+        
         x = self.dense(x)
         
         return x
-    
-    
+
     def trace_graph(self,input_shape):
         
         current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -398,9 +371,8 @@ class ResNet(tf.keras.Model):
         graph_writer = tf.summary.create_file_writer(graph_log_dir)
 
         tf.summary.trace_on(graph=True)
-        self.call(tf.zeros(input_shape))
+        sefl.call(tf.zeros(input_shape))
         with graph_writer.as_default():
             tf.summary.trace_export(
                 name="model_trace",
                 step=0)
-    

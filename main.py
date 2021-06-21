@@ -10,8 +10,9 @@ import tensorflow as tf
 import datetime
 import tensorflow_datasets as tfds
 
-from models.ResNet import resnet50
-from modules.TFR_load import TFR_load
+from models.ResNet import ResNet
+from modules.TFR_load import random_flip_and_crop
+from modules.trainer import train_loop, data_whitening
 
 
 def main():
@@ -19,49 +20,75 @@ def main():
     # config.py
 
     # Hyper params
-
-    BATCH_SIZE     = 256
-    NUM_OF_CLASS   = 10
-    LEARNING_RATE  = 1e-1
-    SCHEDULER      = True
-    NUM_TRAIN_DATA = 60000
-    NUM_TEST_DATA  = 10000
-    EPOCH = 10000
+    
+    SEED               = 1
+    
+    BATCH_SIZE         = 128
+    NUM_OF_CLASS       = 10
+    LEARNING_RATE      = 1e-1
+    OPTMIZER           = 'SGD'
+    SCHEDULER          = 'custom'
+    NUM_TRAIN_DATA     = 50000
+    NUM_TEST_DATA      = 10000
+    EPOCH              = 10000
 
     TR_STEPS_PER_EPOCH = NUM_TRAIN_DATA//BATCH_SIZE
     TE_STEPS_PER_EPOCH = NUM_TEST_DATA//BATCH_SIZE
-
-
+    
+    GRAPH              = False #True
+    HIST_LOG           = False #True
+    
+    # Random seed
+    tf.random.set_seed(SEED)
+    
     # Data loard
 
     ds_name = 'cifar10'
     builder = tfds.builder(ds_name)
 
     tr_ds, te_ds = builder.as_dataset(
-        split = ['train', 'test'],
-        batch_size = BATCH_SIZE,
-        shuffle_files = True)
+        split = ['train', 'test']
+    )
+    
+    tr_ds = tr_ds\
+            .map(random_flip_and_crop)\
+            .repeat()\
+            .shuffle(NUM_TRAIN_DATA, reshuffle_each_iteration=True)\
+            .batch(BATCH_SIZE)\
+            .prefetch(tf.data.AUTOTUNE)
+    te_ds = te_ds\
+            .repeat()\
+            .batch(BATCH_SIZE)\
+            .prefetch(tf.data.AUTOTUNE)
     
     # Set model
-    model = resnet50
+    model = ResNet()
     
+    if GRAPH:
+        model.trace_graph([100,32,32,3])
     
     # LR schedule
     if SCHEDULER:
-        LEARNING_RATE = tf.keras.optimizers.schedules.CosineDecay(
-            LEARNING_RATE,
-            decay_steps = TR_STEPS_PER_EPOCH * 50,
-            alpha = 1e-4
-        )
-        # LEARNING_RATE = tf.keras.optimizers.schedules.ExponentialDecay(
-        #     LEARNING_RATE,
-        #     decay_steps=TR_STEPS_PER_EPOCH * 10,
-        #     decay_rate=0.1
-        # )
+        if SCHEDULER == 'cosine':
+            LEARNING_RATE = tf.keras.optimizers.schedules.CosineDecay(
+                LEARNING_RATE,
+                decay_steps = TR_STEPS_PER_EPOCH * 5,
+                alpha = 1e-3
+            )
+        elif SCHEDULER == 'exponentioal':
+            LEARNING_RATE = tf.keras.optimizers.schedules.ExponentialDecay(
+                LEARNING_RATE,
+                decay_steps=500,
+                decay_rate=0.1,
+                staircase=True
+            )
     
     # Optimizer
-    # optimizer = tf.keras.optimizers.Adam(learning_rate=LEARNING_RATE, epsilon=1e-08)
-    optimizer = tf.keras.optimizers.SGD(learning_rate=LEARNING_RATE,momentum=0.9)
+    if OPTMIZER:
+        if OPTMIZER == 'Adam' or OPTMIZER == 'ADAM' or OPTMIZER == 'adam' :
+            optimizer = tf.keras.optimizers.Adam(learning_rate=LEARNING_RATE, epsilon=1e-07)
+        elif OPTMIZER == 'sgd' or OPTMIZER == 'SGD' : 
+            optimizer = tf.keras.optimizers.SGD(learning_rate=LEARNING_RATE,momentum=0.9)
     
     # Loss function
     loss = tf.keras.losses.CategoricalCrossentropy()
@@ -76,50 +103,23 @@ def main():
     train_log_dir = 'logs/gradient_tape/' + current_time + '/train'
     test_log_dir = 'logs/gradient_tape/' + current_time + '/test'
     
-    # Tensorboard Writer
-    train_summary_writer = tf.summary.create_file_writer(train_log_dir)
-    test_summary_writer = tf.summary.create_file_writer(test_log_dir)
-
+    train_loop(
+        "steps",# log_freq,
+        train_log_dir,
+        test_log_dir,
+        tr_ds,
+        te_ds,
+        model,
+        loss,
+        optimizer,
+        tr_accuracy,
+        te_accuracy,
+        EPOCH,
+        TR_STEPS_PER_EPOCH,
+        TE_STEPS_PER_EPOCH,
+        HIST_LOG,
+        SCHEDULER
+    )
     
-    # Training loop
-    for EP in range(EPOCH):
-        EP += 1
-        
-        loss_value, acc = 0, 0
-        for tr_example in tr_ds:
-            images, labels = tr_example["image"], tr_example["label"]
-            with tf.GradientTape() as tape:
-                logits = model(images / 255)
-                loss_value += loss(tf.one_hot(labels, 10), logits)
-                for layer in model.layers:
-                    loss_value += tf.math.reduce_sum(layer.losses)
-                
-                tr_accuracy.update_state(tf.one_hot(labels, 10), logits)
-                acc += tr_accuracy.result()
-            grads = tape.gradient(loss_value, model.trainable_variables)
-            optimizer.apply_gradients(zip(grads, model.trainable_variables))
-        
-        with train_summary_writer.as_default():
-            tf.summary.scalar('loss', loss_value / TR_STEPS_PER_EPOCH, step=EP)
-            tf.summary.scalar('acc', acc / TR_STEPS_PER_EPOCH , step=EP)
-            tr_accuracy.reset_state()
-
-            for w in model.weights:
-                tf.summary.histogram(w.name, w, step=EP)
-
-        loss_value, acc = 0, 0
-        for te_example in te_ds:
-            images, labels = te_example["image"], te_example["label"]
-            logits = model(images / 255)
-            loss_value += loss(tf.one_hot(labels, 10), logits)
-            te_accuracy.update_state(tf.one_hot(labels, 10), logits)
-            acc += te_accuracy.result()
-            
-        with test_summary_writer.as_default():
-            tf.summary.scalar('loss', loss_value / TE_STEPS_PER_EPOCH, step=EP)
-            tf.summary.scalar('acc', acc / TE_STEPS_PER_EPOCH, step=EP)
-            te_accuracy.reset_state()
-
-
 if __name__ == '__main__':
     main()
